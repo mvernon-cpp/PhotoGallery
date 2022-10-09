@@ -8,6 +8,9 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
+import androidx.paging.PagedList
+import androidx.paging.PagedListAdapter
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
@@ -17,6 +20,9 @@ class PhotoGalleryFragment : Fragment() {
 
     private lateinit var photoGalleryViewModel: PhotoGalleryViewModel
     private lateinit var photoRecyclerView: RecyclerView
+
+    private lateinit var photoAdapter: PhotoAdapter
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,10 +44,15 @@ class PhotoGalleryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        val photoAdapter = PhotoAdapter()
+
         photoGalleryViewModel.galleryItemLiveData.observe(
             viewLifecycleOwner,
-            Observer { galleryItems ->
-                photoRecyclerView.adapter = PhotoAdapter(galleryItems)
+            Observer {
+                photoAdapter?.submitList(it as PagedList<GalleryItem>?)
+                photoRecyclerView.adapter = photoAdapter
+//                    galleryItems -> photoRecyclerView.adapter = PhotoAdapter(galleryItems)
             })
     }
 
@@ -50,23 +61,54 @@ class PhotoGalleryFragment : Fragment() {
         val bindTitle: (CharSequence) -> Unit = itemTextView::setText
     }
 
-    private class PhotoAdapter(private val galleryItems: List<GalleryItem>)
-        : RecyclerView.Adapter<PhotoHolder>() {
+//    private class PhotoAdapter(private val galleryItems: List<GalleryItem>)
+//        : RecyclerView.Adapter<PhotoHolder>() {
 
-        override fun onCreateViewHolder(
-            parent: ViewGroup,
-            viewType: Int
-        ): PhotoHolder {
-            val textView = TextView(parent.context)
-            return PhotoHolder(textView)
+    private class PhotoAdapter :
+        PagedListAdapter<GalleryItem, PhotoHolder>(object : DiffUtil.ItemCallback<GalleryItem>() {
+
+            override fun areItemsTheSame(oldItem: GalleryItem, newItem: GalleryItem): Boolean =
+                oldItem.id == newItem.id
+
+            override fun areContentsTheSame(oldItem: GalleryItem, newItem: GalleryItem): Boolean =
+                oldItem == newItem
+        }
+            ){
+                override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PhotoHolder {
+                    val textView = TextView(parent.context)
+                    return PhotoHolder(textView)
+                }
+
+                override fun onBindViewHolder(holder: PhotoHolder, position: Int) {
+                    val galleryItem = getItem(position)
+                    galleryItem?.title?.let { holder.bindTitle(it) }
+                }
+
+//            override fun onCreateViewHolder(
+//                parent: ViewGroup,
+//                viewType: Int
+//            ): PhotoHolder {
+//                val textView = TextView(parent.context)
+//                return PhotoHolder(textView)
+//            }
+
+    //        override fun getItemCount(): Int = galleryItems.size
+//            override fun onBindViewHolder(holder: PhotoHolder, position: Int) {
+//                val galleryItem = galleryItems[position]
+//                holder.bindTitle(galleryItem.title)
+            }
         }
 
-        override fun getItemCount(): Int = galleryItems.size
-        override fun onBindViewHolder(holder: PhotoHolder, position: Int) {
-            val galleryItem = galleryItems[position]
-            holder.bindTitle(galleryItem.title)
+    private class GalleryItemDiffCallback : DiffUtil.ItemCallback<GalleryItem>() {
+        override fun areItemsTheSame(oldItem: GalleryItem, newItem: GalleryItem): Boolean {
+            return oldItem == newItem
         }
+
+
+    override fun areContentsTheSame(oldItem: GalleryItem, newItem: GalleryItem): Boolean {
+        return oldItem == newItem
     }
+
 
     companion object {
         fun newInstance() = PhotoGalleryFragment()
